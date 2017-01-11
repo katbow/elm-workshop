@@ -159,7 +159,7 @@ not really using it in this way, and now we're going to introduce `update` and
 where we're rendering a series of these repositories, and we're going to have
 a little `X` button next to each one. The user can click that button to remove
 it from the rest. Just hide it, delete it, get it out of there. This is how
-we're going to do it. Each of these results has a data field. WHen you click on
+we're going to do it. Each of these results has a data field. When you click on
 it, it's going to send a message that looks like this to update:
 
 ```elm
@@ -177,3 +177,194 @@ think I clicked that "X", that thing went away, I'm happy.
 
 We have the same pattern as before. We've got some exercises to go through,
 we've got some TODOs. Let's take a look at those.
+
+You can see we've got this initial model. You always need to specify an initial
+model in order to kick things off. This it the thing that we will be updating
+with our function, this initial value. We've got a bunch of hardcoded results.
+Before we had one hardcoded result. We've expanded that, we're really moving up
+in the world, now we have several hardcoded results in a list. We've also got
+this query thing. Currently that's set to `"tutorial"`, it's going to be,
+someday, something that gets displayed in a little search box. It's going to,
+by default, search for tutorial. But for now, we're not going to use it yet,
+we're just going to focus on the results.
+
+Each result has it's own id. It's has a name, and stars. We still have our
+`elmHubHeader` thing. Note by the way, that I went ahead and pulled this up to
+the top. This used to be in a `let`, but I said "Hey, this doesn't actually
+have any dependencies, so might as well just put it up as a top level value
+instead of making a let for that." That's kind of usually good practice. If you
+don't have any particular reason to have a let, if you have a choice between
+putting something in a let and pulling it out at the top level, pulling it out
+at the top level like this makes it clear what the dependencies are. This
+doesn't have a dependency on anything else in my program, it's just totally
+stand alone. The only scope that it needs is the top level scope itself. That's
+generally the preferred way to go with that.
+
+We've got `view`. `view` now takes `model` as an argument. Initially when we
+call `view`  it's going to get this thing, our initial model. On subsequent
+runs, after the user clicks and does things, it's going to be a potentially
+different model, so we need to take into account this model right here. We
+don't want to work in terms of that initial model, or we're going to be working
+with stale application state. It's much better to just nly deal with this model
+argument that we're getting passed in here. So we've got class content,
+`elmHubHeader`, all the same as before. Now our `ul` that has the results class
+is using `List.map`. What is it doing with `List.map`? It's looking at
+model.results, this big old list of things right here and what it's going to do
+is it's going to map `viewSearchResults` over that. It's going to go each of
+those results, those individual search results, and it's going to call this
+function on it. This is where we're going to do the bulk of heavy lifting on
+our view logic. Each individual thing has the class `"star-count"`, just like
+before. We've got that `text (toString result.stars)`. All good so far. We've
+got our `a` with our `href`, just like before. I did that little
+`target "_blank"` so when you click on the links, it opens in a new tab. It's
+just a "nice-to-have" for our users. `text result.name`, all the same as
+before. But *now* we've got this new button. And this button, it just says "X".
+It's got some styling called `hide-result`. What we want to do, we want to make
+it so that when the user clicks on this, this sends one of those
+`"DELETE_BY_ID"` messages that we were talking about before, which will then
+get picked up by `update`.
+
+So `update` is going to look at this message and it's going to say "Hey, did I
+get a 'DELETE_BY_ID' message? Cool. If so, look at its `data` field to find out
+which `id` the user clicked on. Then remove that from our model's result list
+using `List.filter`." Important to note that these two need to coordinate.
+`onClick` cannot just give the same exact message every single time. It needs
+to give a message that sends the particular id of the search result that we're
+rendering right now. That way when `update` gets it, it will get the right `id`
+and it knows which one to remove from the list.
+
+Any questions on that? Yeah?
+
+"I just noticed `viewSearchResult` is defined lower, you know after."
+
+"Ahh, yes"
+
+"So, do you want to explain?"
+
+So `viewSearchResult` is actually being defined after it's being used inside
+`view`. In general, any of these top level definitions, you can order them
+pretty much however you want. This is getting into some stuff we haven't really
+gotten into yet, but the short answer is that because of Elm's guarantees
+around immutability and side effects and things, it's always safe to do this,
+because execution order is not determined by order in the file, but rather by,
+essentially, the Elm architecture. It's going to call these things in certain
+orders. You actually can't really write something up here that would cause some
+surprising thing to happen that matters. So you can pretty much reorder anytime
+you want, however you want.
+
+Let's go ahead and work through this. Here's what we've got so far. We've got
+each of these things as a rendering from the inital model. I've got these "X"s
+here which do nothing! I'm clicking, you probably can't tell that I'm clicking,
+but trust me I'm clicking and it's not doing anything. We're rendering each of
+them with that `List.map`, which is cool. We've got our header which is great.
+But we don't actually have any interaction yet. So let's hook it up. First
+thing we want is some kind of `onClick` handler that's going to send one of
+these `"DELETE_BY_ID"` messages. We're going to add that right after the
+class. `onClick`. Then we're going to put the actual message in here:
+`{ operation = "DELETE_BY_ID", data = result.id }` For data, we're saying we
+want the particular id of the exact result we're looking at right now. So
+that's just going to be `result.id`. Okay, save that. Now, that's only one half
+of the equation. We need both to send that particular value, but also to make
+it so that update receives that value. Right now we're just sending it into the
+ether and it's coming through here, but update just returns the same model
+everytime anyways. So let's make it do something a little more useful.
+
+```elm
+if msg.operation == "DELETE_BY_ID" then
+```
+
+`if` this is true, we want to do something more useful.
+
+```elm
+if msg.operation == "DELETE_BY_ID" then
+  model
+else
+  model
+```
+
+`else` we're going to just leave the model alone.
+
+Specifically what we want to do is return a new model without the given `id`
+present anymore. So how are we going to do that?
+
+We'll start with this record update. So we want to say, "Leave everything in
+the model alone, except for the results field."
+
+```elm
+if msg.operation == "DELETE_BY_ID" then
+  { model | }
+else
+  model
+```
+
+So we're going to leave `query` alone and just mess with `results`.
+
+
+```elm
+if msg.operation == "DELETE_BY_ID" then
+  { model | results = model.results }
+else
+  model
+```
+
+But, we want to transform this. Right now we're saying "Take the model, and set
+it's results equal to the same results we had before and give me a model that
+looks like that." This right here is elaborately worthless. What we want to do
+instead is transform this somehow, so actually return something new and different.
+
+```elm
+if msg.operation == "DELETE_BY_ID" then
+  { model | results = List.filter (\result -> ) model.results }
+else
+  model
+```
+
+We need to give `List.filter` some sort of function. I'm going to use an
+anonymous function style here `(\)`. What is a given element in here? What
+does one of these results look like? It's one of these things, one of these
+nested records with `id`, `name`, and `stars`
+
+```elm
+{ id = 1
+, name = "TheSeamau5/elm-checkerboardgrid-tutorial"
+, stars = 66
+}
+```
+
+I'm going to call that result so that's the argument to my anonymous function.
+When I get one of these results how do I decide if it's keepable or not? How do
+I decide if this particular result should stay in the list? Well, one easy
+mistake to make is:
+
+```elm
+if msg.operation == "DELETE_BY_ID" then
+  { model | results = List.filter (\result -> result.id == msg.data) model.results }
+else
+  model
+```
+
+Some of you may be smiling because you did this. If you do that, anyone know
+what I'm going to get when I click on one of these? "Only that one." Yeah, it
+will delete *everything* else, it will only *keep* that one. Not quite what we
+want, small bug. Elm's compiler is pretty awesome, but it cannot save you from
+that error. Business logic errors are always fair game. I think that's just
+always going to be true in programming. If I change it to
+`result.id /= msg.data`, I saw somebody in the chat mention `/=` is same as
+`!=` in JavaScript which is totally true. We briefly mentioned that. That's
+one way to write this. Now when I click on this, it does the right thing! Sweet.
+Other ways we could write this if we wanted to get fancy is we could have also
+left `==` alone and just written `not result.id == msg.data`.
+This will do exactly the same thing. I would personally choose to use the `/=`
+though just because it's a little more concise. There was another question
+earlier about the type of message and are there any restrictions on that? No,
+you can make *any* kind of message you want to come up with. We could make it a
+string, we could make it an int, we've chosen to make it a record in this case,
+could also be a list, who knows. Typically though, there's one convention for
+how to do these and everybody does that. That's not quite what we're doing
+right now though, we'll learn that in part 5. But basically, if you want to,
+you can use pretty much whatever you want for your messages. One guiding
+principle though is it's recommended that you do not put functions in your
+message, like unevaluated functions, and also that you don't put unevaluated
+functions in your model. It will let you; it will compile and it'll work, but
+architecturally speaking, that's not something you want to be doing. It's just
+a rule of thumb.  
